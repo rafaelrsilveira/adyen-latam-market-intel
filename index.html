@@ -320,7 +320,7 @@
                         </div>
 
                         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col items-center">
-                            <h4 class="font-bold text-slate-500 text-[10px] mb-3 uppercase tracking-wider self-start">Modelos de Negócio</h4>
+                            <h4 class="font-bold text-slate-400 text-[10px] mb-3 uppercase tracking-wider self-start">Modelos de Negócio</h4>
                             <div class="relative w-full aspect-square max-h-[120px] flex justify-center">
                                 <canvas id="chart-models"></canvas>
                             </div>
@@ -730,7 +730,7 @@ BanQi|Financial Services|2|Digital|SP
 Gramado Parks|Hospitality & Travel|2|Digital|SP
 ROYAL CARIBBEAN|Hospitality & Travel|2|Unified Commerce|SP
 Regus|Hospitality & Travel|2|Unified Commerce|SP
-FLOT VIAGENS|Hospitality & Travel|2|Unified Commerce|SP
+FLOT VIAGENSHospitality & Travel|2|Unified Commerce|SP
 CVC Corp|Hospitality & Travel|2|Unified Commerce|SP
 KING HOST|Hospitality & Travel|2|Digital|RS
 Kayak|Hospitality & Travel|2|Digital|SP
@@ -1125,7 +1125,7 @@ Fiap|Public Services|3|Unified Commerce|SP
 Cultura Inglesa|Public Services|3|Digital|SP
 Arco Educação|Public Services|3|Unified Commerce|SP
 INSPER|Public Services|3|Unified Commerce|SP
-Cogna Educação (Anhinguera & Kroton)|Public Services|3|Digital|SP
+Cogna Educação (Anhanguera & Kroton)|Public Services|3|Digital|SP
 YDUQS (Do not Use)|Public Services|3|Digital|SP
 Faculdade Pitágoras|Public Services|3|Unified Commerce|SP
 Grupo UNIP/OBJETIVO|Public Services|3|Unified Commerce|SP
@@ -1416,7 +1416,7 @@ Lojas Edmil|Retail|3|Unified Commerce|SP
 Bela Tintas|Retail|3|Unified Commerce|SP
 M.Martan|Retail|3|Unified Commerce|SP
 BERLANDA|Retail|3|Unified Commerce|SP
-IMPERIO MOVEIS E ELETRO|Retail|3|Unified Commerce|SP
+IMPERIO MOVEIS E ELETRORetail3Unified Commerce|SP
 TOTH|Retail|3|Unified Commerce|SP
 Nadir|Retail|3|Unified Commerce|SP
 REDEMAC|Retail|3|Unified Commerce|SP
@@ -2055,15 +2055,16 @@ Buser|Transportation & Mobility|3|Digital|SP`;
         }
 
         function updateKPIs() {
-            const totalLeads = filteredList.filter(acc => acc.source === 'lead').length;
-            const totalActive = filteredList.filter(acc => acc.source === 'active').length;
-            const totalOpps = filteredList.filter(acc => acc.source === 'opportunity').length;
+            const countryFiltered = masterDatabase.filter(acc => acc.country === activeCountry);
+            
+            const totalLeads = countryFiltered.filter(acc => acc.source === 'lead').length;
+            const totalActive = countryFiltered.filter(acc => acc.source === 'active').length;
+            const totalOpps = countryFiltered.filter(acc => acc.source === 'opportunity').length;
 
             document.getElementById("stat-total").textContent = totalLeads.toLocaleString('pt-BR');
             document.getElementById("stat-active").textContent = totalActive.toLocaleString('pt-BR');
             document.getElementById("stat-opportunities").textContent = totalOpps.toLocaleString('pt-BR');
 
-            const countryFiltered = masterDatabase.filter(acc => acc.country === activeCountry);
             document.getElementById("leads-count").textContent = filteredList.length.toLocaleString('pt-BR');
             document.getElementById("leads-total").textContent = countryFiltered.length.toLocaleString('pt-BR');
         }
@@ -2403,15 +2404,9 @@ Buser|Transportation & Mobility|3|Digital|SP`;
             const height = document.getElementById("map-container").clientHeight;
             mapSvg.attr("viewBox", `0 0 ${width} ${height}`);
 
-            let centerCoords = activeCountry === "BR" ? [-53, -15] : [-102, 23];
-            let mapScale = activeCountry === "BR" ? width * 1.1 : width * 1.35;
-
-            const projection = d3.geoMercator().center(centerCoords).scale(mapScale).translate([width / 2, height / 2]);
-            const pathGenerator = d3.geoPath().projection(projection);
-
             const geojsonUrl = activeCountry === "BR" 
                 ? "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson"
-                : "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/mexico.geojson";
+                : "https://gist.githubusercontent.com/walkerke/76cb8cc5f949432f9555/raw/363c297ce82a4dcb9bdf003d82aa4f64bc695cf1/mx.geojson";
 
             try {
                 const response = await fetch(geojsonUrl);
@@ -2420,8 +2415,12 @@ Buser|Transportation & Mobility|3|Digital|SP`;
                 loader.style.display = "none";
                 gMap.selectAll("*").remove();
 
+                // D3 fitExtent dynamically scales and centers both Brazil and Mexico beautifully without clipping
+                const projection = d3.geoMercator().fitExtent([[20, 20], [width - 20, height - 20]], mapGeoJSON);
+                const pathGenerator = d3.geoPath().projection(projection);
+
                 const maxVal = d3.max(mapGeoJSON.features, d => {
-                    const code = activeCountry === "BR" ? d.properties.sigla : resolveMexicanStateCode(d.properties.name);
+                    const code = activeCountry === "BR" ? d.properties.sigla : (resolveMexicanStateCode(d.properties.name) || d.properties.name);
                     return masterDatabase.filter(a => a.country === activeCountry && a.state === code).length;
                 }) || 10;
                 colorScale.domain([1, maxVal]);
@@ -2433,7 +2432,7 @@ Buser|Transportation & Mobility|3|Digital|SP`;
                     .attr("d", pathGenerator)
                     .attr("class", "state-path stroke-slate-200 stroke-[1px]")
                     .style("fill", d => {
-                        const code = activeCountry === "BR" ? d.properties.sigla : d.properties.name;
+                        const code = activeCountry === "BR" ? d.properties.sigla : (resolveMexicanStateCode(d.properties.name) || d.properties.name);
                         const count = masterDatabase.filter(a => a.country === activeCountry && a.state === code).length;
                         return count === 0 ? "#f8fafc" : colorScale(count);
                     })
@@ -2447,7 +2446,7 @@ Buser|Transportation & Mobility|3|Digital|SP`;
                         document.getElementById("map-tooltip").style.opacity = 0;
                     })
                     .on("click", (event, d) => {
-                        const code = activeCountry === "BR" ? d.properties.sigla : d.properties.name;
+                        const code = activeCountry === "BR" ? d.properties.sigla : (resolveMexicanStateCode(d.properties.name) || d.properties.name);
                         selectState(code);
                     });
             } catch (err) {
@@ -2455,10 +2454,57 @@ Buser|Transportation & Mobility|3|Digital|SP`;
             }
         }
 
+        const mxStateMap = {
+            "CDMX": ["Distrito Federal", "Ciudad de México", "CDMX", "Distrito Federal (CDMX)", "Ciudad de Mexico"],
+            "NL": ["Nuevo León", "Nuevo Leon", "NL"],
+            "JAL": ["Jalisco", "Jal."],
+            "CHIH": ["Chihuahua", "Chih."],
+            "QROO": ["Quintana Roo", "Q. Roo", "Quintana Roo (QROO)"],
+            "BC": ["Baja California", "Baja California Norte"],
+            "GTO": ["Guanajuato", "Gto."],
+            "YUC": ["Yucatán", "Yucatan"],
+            "VER": ["Veracruz", "Veracruz de Ignacio de la Llave", "Ver."],
+            "SIN": ["Sinaloa", "Sin."],
+            "PUE": ["Puebla", "Pue."],
+            "COAH": ["Coahuila", "Coahuila de Zaragoza", "Coah."],
+            "QRO": ["Querétaro", "Queretaro", "Qro."],
+            "SLP": ["San Luis Potosí", "San Luis Potosi"],
+            "SON": ["Sonora"],
+            "TAMP": ["Tamaulipas"],
+            "MICH": ["Michoacán", "Michoacán de Ocampo", "Michoacan"],
+            "EDOMEX": ["México", "Estado de México", "EdoMex"],
+            "NAY": ["Nayarit"],
+            "COL": ["Colima"],
+            "AGS": ["Aguascalientes"],
+            "ZAC": ["Zacatecas"],
+            "DUR": ["Durango"],
+            "CHIS": ["Chiapas"],
+            "OAX": ["Oaxaca"],
+            "TAB": ["Tabasco"],
+            "GRO": ["Guerrero"],
+            "HGO": ["Hidalgo"],
+            "MOR": ["Morelos"],
+            "TLAX": ["Tlaxcala"],
+            "CAM": ["Campeche"],
+            "BCS": ["Baja California Sur"]
+        };
+
+        function resolveMexicanStateCode(geojsonName) {
+            if (!geojsonName) return null;
+            const cleanName = geojsonName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            for (const code in mxStateMap) {
+                const matchFound = mxStateMap[code].some(alt => 
+                    alt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() === cleanName
+                );
+                if (matchFound) return code;
+            }
+            return null;
+        }
+
         function colorMapStates() {
             if (!mapGeoJSON) return;
             gMap.selectAll("path").style("fill", d => {
-                const code = activeCountry === "BR" ? d.properties.sigla : d.properties.name;
+                const code = activeCountry === "BR" ? d.properties.sigla : (resolveMexicanStateCode(d.properties.name) || d.properties.name);
                 const count = filteredList.filter(acc => acc.state === code).length;
                 
                 if (activeFilters.state !== "all" && activeFilters.state !== code) return "#f1f5f9";
@@ -2472,7 +2518,7 @@ Buser|Transportation & Mobility|3|Digital|SP`;
         }
 
         function showTooltip(event, d) {
-            const code = activeCountry === "BR" ? d.properties.sigla : d.properties.name;
+            const code = activeCountry === "BR" ? d.properties.sigla : (resolveMexicanStateCode(d.properties.name) || d.properties.name);
             const stateAccs = masterDatabase.filter(a => a.country === activeCountry && a.state === code);
             const tooltip = document.getElementById("map-tooltip");
             tooltip.innerHTML = `<strong>${d.properties.name} (${code})</strong><br>Contas Totais: ${stateAccs.length}`;
